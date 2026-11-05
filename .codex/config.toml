@@ -1,0 +1,26 @@
+# Codex project configuration. Requires a trusted project and reviewed hook.
+# Restart the local Codex session after installing or changing this file.
+default_permissions = "orbit-air"
+
+[features]
+hooks = true
+
+[permissions.orbit-air]
+description = "Workspace editing with .env files denied"
+extends = ":workspace"
+
+[permissions.orbit-air.filesystem.":workspace_roots"]
+".env" = "deny"
+"**/.env" = "deny"
+
+[[hooks.Stop]]
+
+[[hooks.Stop.hooks]]
+type = "command"
+command = '/bin/sh "$(git rev-parse --show-toplevel)/.codex/hooks/pytest_stop.sh"'
+timeout = 120
+statusMessage = "Running the project pytest suite"
+
+# Review/trust this hook through /hooks; do not bypass hook trust.
+# Permission documentation: https://learn.chatgpt.com/docs/permissions
+# Hook documentation: https://learn.chatgpt.com/docs/hooks
