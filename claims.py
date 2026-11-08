@@ -36,6 +36,11 @@ def _utc(value: datetime) -> datetime:
     return value.astimezone(UTC)
 
 
+def is_overdue(deadline: datetime, *, now: datetime) -> bool:
+    """Compare injected times strictly, interpreting naive inputs as UTC."""
+    return _utc(now) > _utc(deadline)
+
+
 def file_claim(
     connection: sqlite3.Connection,
     *,
@@ -121,7 +126,7 @@ def _change_status(
     actor: str,
     agent: str | None = None,
 ) -> None:
-    """Apply a validated manual operation with its history in one savepoint."""
+    """Apply a checked status change with its history in one savepoint."""
     actor = _required_text(actor, "actor")
     changed_at = _utc(now).isoformat()
     with atomic(connection):
@@ -186,3 +191,24 @@ def get_history(connection: sqlite3.Connection, claim_id: int) -> list[dict]:
         "SELECT * FROM history WHERE claim_id = ? ORDER BY id", (claim_id,),
     )) as cursor:
         return [dict(row) for row in cursor.fetchall()]
+
+
+def escalate_overdue(connection: sqlite3.Connection, *, now: datetime) -> list[int]:
+    """Escalate eligible claims atomically without committing a caller transaction."""
+    current_time = _utc(now)
+    escalated_ids = []
+    with atomic(connection):
+        with closing(connection.execute(
+            "SELECT id, deadline FROM claims WHERE status IN (?, ?) ORDER BY id",
+            ("open", "assigned"),
+        )) as cursor:
+            candidates = cursor.fetchall()
+        for claim in candidates:
+            deadline = datetime.fromisoformat(claim["deadline"])
+            if is_overdue(deadline, now=current_time):
+                _change_status(
+                    connection, claim["id"], "escalated",
+                    now=current_time, actor="system",
+                )
+                escalated_ids.append(claim["id"])
+    return escalated_ids
