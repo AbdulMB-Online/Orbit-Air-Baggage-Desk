@@ -1,0 +1,101 @@
+ORB-52 / ORB-56 tests-first run; implementation and commits prohibited.
+Command: .venv/bin/python -m pytest -q --tb=line
+Exit code: 1
+
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF                                          [100%]
+=================================== FAILURES ===================================
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+E   ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+<frozen importlib._bootstrap>:1302: ModuleNotFoundError: No module named 'db'. Did you mean: 'bdb'?
+=========================== short test summary info ============================
+FAILED tests/test_claims.py::test_schema_contains_required_tables_and_columns
+FAILED tests/test_claims.py::test_schema_initialization_preserves_existing_claims
+FAILED tests/test_claims.py::test_history_foreign_key_rejects_a_missing_claim
+FAILED tests/test_claims.py::test_sqlite_check_constraints_reject_unknown_values[type-missing]
+FAILED tests/test_claims.py::test_sqlite_check_constraints_reject_unknown_values[tier-platinum]
+FAILED tests/test_claims.py::test_sqlite_check_constraints_reject_unknown_values[status-pending]
+FAILED tests/test_claims.py::test_filing_persists_a_complete_open_claim_and_initial_history
+FAILED tests/test_claims.py::test_invalid_filing_is_clear_and_has_no_side_effects[overrides0-passenger]
+FAILED tests/test_claims.py::test_invalid_filing_is_clear_and_has_no_side_effects[overrides1-passenger]
+FAILED tests/test_claims.py::test_invalid_filing_is_clear_and_has_no_side_effects[overrides2-flight]
+FAILED tests/test_claims.py::test_invalid_filing_is_clear_and_has_no_side_effects[overrides3-flight]
+FAILED tests/test_claims.py::test_invalid_filing_is_clear_and_has_no_side_effects[overrides4-type]
+FAILED tests/test_claims.py::test_invalid_filing_is_clear_and_has_no_side_effects[overrides5-tier]
+FAILED tests/test_claims.py::test_deadline_is_based_on_the_injected_filing_time[gold-4]
+FAILED tests/test_claims.py::test_deadline_is_based_on_the_injected_filing_time[silver-24]
+FAILED tests/test_claims.py::test_deadline_is_based_on_the_injected_filing_time[standard-72]
+FAILED tests/test_claims.py::test_filing_normalizes_timestamps_to_utc[offset-normalized]
+FAILED tests/test_claims.py::test_filing_normalizes_timestamps_to_utc[naive-means-utc]
+FAILED tests/test_claims.py::test_notes_are_stored_as_literal_data - ModuleNo...
+FAILED tests/test_claims.py::test_filing_is_visible_to_an_independent_connection
+FAILED tests/test_claims.py::test_listing_an_empty_database_returns_no_claims
+FAILED tests/test_claims.py::test_listing_filters_use_intersection[filters0-expected0]
+FAILED tests/test_claims.py::test_listing_filters_use_intersection[filters1-expected1]
+FAILED tests/test_claims.py::test_listing_filters_use_intersection[filters2-expected2]
+FAILED tests/test_claims.py::test_listing_filters_use_intersection[filters3-expected3]
+FAILED tests/test_claims.py::test_listing_filters_use_intersection[filters4-expected4]
+FAILED tests/test_claims.py::test_listing_filters_use_intersection[filters5-expected5]
+FAILED tests/test_claims.py::test_listing_rejects_invalid_filters[filters0-status]
+FAILED tests/test_claims.py::test_listing_rejects_invalid_filters[filters1-tier]
+FAILED tests/test_claims.py::test_listing_rejects_invalid_filters[filters2-tier]
+FAILED tests/test_claims.py::test_history_failure_rolls_back_filing_and_preserves_existing_records
+31 failed in 0.24s
