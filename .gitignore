@@ -13,8 +13,11 @@ __pycache__/
 
 # SQLite databases
 *.db
+*.db-*
 *.sqlite
+*.sqlite-*
 *.sqlite3
+*.sqlite3-*
 
 # Local Codex instructions
 AGENTS.override.md
@@ -23,6 +26,6 @@ AGENTS.override.md
 CLAUDE.local.md
 
 # macOS
-.DS_Storeorbit_air_baggage_desk_lab.md
+.DS_Store
 
 /orbit_air_baggage_desk_lab.md
