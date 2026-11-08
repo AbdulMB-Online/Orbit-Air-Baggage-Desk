@@ -1,0 +1,17 @@
+Rollback sensitivity check in an isolated temporary copy; production code and tests unchanged.
+Mutation: replace only file_claim transaction context with nullcontext.
+Test: tests/test_claims.py::test_history_failure_rolls_back_filing_and_preserves_existing_records
+Expected mutant exit code: 1; actual: 1
+
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____ test_history_failure_rolls_back_filing_and_preserves_existing_records _____
+tests/test_claims.py:586: in test_history_failure_rolls_back_filing_and_preserves_existing_records
+    assert _rows(connection, "SELECT * FROM claims ORDER BY id") == before_claims
+E   AssertionError: assert [{'id': 1, 'p...elayed', ...}] == [{'id': 1, 'p...elayed', ...}]
+E
+E     Left contains one more item: {'id': 2, 'passenger': 'New Passenger', 'flight': 'OA123', 'type': 'delayed', ...}
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tests/test_claims.py::test_history_failure_rolls_back_filing_and_preserves_existing_records
+1 failed in 0.04s
