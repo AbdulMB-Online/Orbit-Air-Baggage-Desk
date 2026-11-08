@@ -2,7 +2,7 @@
 
 - Read `PLAN.md` and `orbit_air_baggage_desk_lab.md` before work; follow the reviewed Codex adaptation and flag unresolved conflicts or assumptions.
 - Use Python 3.12+, SQLite, and a project virtual environment; preserve the assignment's exact application, command, branch, issue, and PR names.
-- Stay within the user's current scope. Do not create application code, branches, or commits unless explicitly authorized for that task.
+- Stay within the user's current scope and the assignment's required behavior and evidence. Avoid optional additions and redundant test combinations. Do not create application code, branches, or commits unless explicitly authorized for that task.
 
 ## Architecture boundaries
 
@@ -18,7 +18,7 @@
 - Run Ruff without rewriting files: `python -m ruff check .`.
 - Write new tests before feature code, observe and record their failures, then implement. When commits are authorized, commit tests before implementation on each required branch.
 - Never modify, delete, rename, skip, or weaken existing tests without the user's explicit approval. Explain the proposed correction first; document approved changes in the PR. Do not bypass tests through fixtures or configuration.
-- Meet branch test minimums of 5, 6, 6, and 3 in the order specified by `PLAN.md`, with at least 20 passing tests overall. Cover deadline boundaries and forced history-write rollback.
+- Use focused tests for distinct required rules, meeting branch minimums of 5, 6, 6, and 3 in `PLAN.md` order and at least 20 passing tests overall. Cover deadline boundaries and forced history-write rollback; add cases only when needed for required coverage.
 - Review every diff and run applicable checks; record substantive Codex prompts, decisions, corrections, and review outcomes in `docs/PROMPT_LOG.md`, with relevant summaries in README's `Agent Log`. Report actual results and remaining failures; never invent evidence.
 
 ## Security restrictions

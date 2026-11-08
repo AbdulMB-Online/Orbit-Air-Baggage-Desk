@@ -291,12 +291,89 @@ All checks passed!
 
 **Tracking and remaining work:** ORB-56 was marked Done only after the reviewed tests were committed; ORB-57's schema checks passed before it was marked Done, and ORB-58's filing/history work was marked Done after all 69 cases passed. ORB-59 and ORB-52 remain open for the user's PR creation/review/merge workflow. The later three required feature branches and full-lab demonstrations remain pending. The branch is being prepared for push; no PR creation or merge has been claimed.
 
+## 14 — Verify the first feature merge
+
+**Date:** 2026-11-08. **Prompt:** “merged”
+
+**Observed outcome:** Fetched origin and verified [PR #2](https://github.com/AbdulMB-Online/Orbit-Air-Baggage-Desk/pull/2) merged as `f753d57`. Its ancestry retains branch tip `3739b08`, tests-only commit `ef67f61`, and implementation commit `ef80b49`; the user did not squash away the test-first history. Switched to the existing local main branch and fast-forwarded it to origin/main without creating a branch or commit.
+
+**Validation and tracking:** On merged main, the complete suite reported `69 passed in 0.12s`; Ruff reported `All checks passed!`. Marked ORB-59 and ORB-52 Done and attached the verified merge outcome in Linear. Updated these existing documentation sections locally; no additional commit was created. No detailed PR review findings were supplied, so none are invented.
+
+**Next scoped work:** ORB-53, starting with ORB-60's new assignment/status/history tests. Implementation on that branch has not been started or authorized by this merge acknowledgement.
+
+## 15 — Write assignment, status, and history tests first
+
+**Date:** 2026-11-08. **Prompt:** “lets start off by writing tests for Assign, resolve, close, allowed changes, history entries - at least 6”
+
+**Scope and context:** Read `AGENTS.md`, `PLAN.md`, the lab requirements, ORB-53, and its four children ORB-60 through ORB-63. The merged baseline passed all 69 existing cases before editing. Added only a new acceptance-test file, `tests/test_status.py`, plus the required evidence updates in this log and README. Preserved the pre-existing merge documentation edits. No application code, existing tests, configuration, branches, or commits changed; the working branch remains main. The eventual required branch is `feature/assign-and-status`, with its tests committed before implementation once authorized.
+
+**Coverage:** 13 new test functions collect 46 cases:
+
+| Checks | Cases |
+|---|---|
+| Open/escalated assignment, assigned/escalated resolution, and resolved closure; full field preservation, complete history, and independent-connection visibility | 5 |
+| Every forbidden source status for these three commands, including all three commands against closed claims; clear errors and unchanged claim/history snapshots | 10 |
+| Empty and whitespace agents on both assignment paths | 4 |
+| Missing claim IDs for assign, resolve, close, and history; no writes | 4 |
+| Empty and whitespace actors on all three mutations | 6 |
+| Offset-bearing and naive injected times normalized to UTC on all three mutations | 6 |
+| Complete lifecycle history including filing; isolated, repeatable, read-only retrieval in entry-ID order | 2 |
+| Forced history-insert failure rolls back status and ownership for all three mutations | 3 |
+| Caller-owned rollback and commit preserve claim/history atomicity for all three mutations | 6 |
+
+**Proposed API for review:** The assignment fixes command names, not Python function signatures. These tests propose `assign_claim(connection, claim_id, *, agent, now, actor)`, `resolve_claim(connection, claim_id, *, now, actor)`, `close_claim(connection, claim_id, *, now, actor)`, and `get_history(connection, claim_id)`. History returns mappings containing the stored entry ID, claim ID, old/new status, actor, and timestamp. Mutator return values remain unspecified. Invalid operations and missing IDs raise `ValueError` with a useful message; transition errors identify both statuses, and missing-ID errors identify the ID. SQLite write failures propagate. These are project API choices for review, not additional assignment-mandated names.
+
+**Design and independence review:** Static SQL fixtures create legal status histories without calling another status operation or the future escalator. Each case uses a separate temporary database and explicit actors/times. Mutation assertions inspect complete stored rows and compare all existing history, rather than trusting return values. Observer connections close explicitly. The rollback trigger uses `RAISE(ABORT)`, so SQLite does not roll back the preceding claim update for the implementation; the operation must provide that protection itself. Outer-transaction tests follow the already reviewed filing contract. Retrieval deliberately includes interleaved claim IDs, repeated timestamps, and a clock that moves backwards: `PLAN.md` and ORB-63 require entry-ID order, which clarifies ORB-60's less precise “chronological” wording. UTC assertions compare normalized instants and offsets without requiring one equivalent ISO spelling. Escalation eligibility and its two transitions remain in the next feature's scope.
+
+**Observed verification:**
+
+- Baseline: `.venv/bin/python -B -m pytest -q -p no:cacheprovider` → `69 passed in 0.15s`, exit 0.
+- Initial targeted red run: `.venv/bin/python -B -m pytest tests/test_status.py -q --tb=short -p no:cacheprovider` → `46 failed in 0.22s`, exit 1. All failures reached missing functions; there were no collection/setup errors.
+- After reviewing the new draft: `.venv/bin/python -B -m pytest -q --tb=line -rN -p no:cacheprovider` → `46 failed, 69 passed in 0.21s`, exit 1. Every new failure is `AttributeError` for the absent `assign_claim`, `resolve_claim`, `close_claim`, or `get_history` API. There are no skips or xfails.
+- `.venv/bin/python -B -m ruff check --no-cache .` → `All checks passed!`, exit 0.
+- The existing test SHA-256 remains `6d586e3b868e292ec5e96d6fc73e20060e6085b71220a335ba9b07ebc74c79bb`. Git reports no diff for the existing tests, application files, instructions, plan, lab, or Codex configuration.
+
+**Remaining work:** This is the expected red phase, not a completed implementation or green branch. API choices and the new tests await learner review; a test-first commit, implementation, rollback sensitivity check against an implementation, and the dedicated PR are still pending. The Stop hook and security controls remain unchanged; expected failures do not authorize implementation or a test bypass.
+
+## 16 — Limit future work to assignment requirements
+
+**Date:** 2026-11-08. **Prompt summaries:** Explain why a lab requiring at least 20 tests has more than 100 cases, then “moving on lets limit to what the assignment asks for”.
+
+**Review outcome and correction:** Explained that pytest expands 37 functions into 115 parameterized cases (69 existing passing cases and 46 new red cases). Acknowledged that the coverage was more exhaustive than needed. Updated the existing project instructions to limit future work to required behavior and evidence, with focused tests for distinct required rules. The branch minimums remain 5, 6, 6, and 3; the overall 20-test requirement is a minimum, not a cap. Reviewed UTC, actor, atomic-import, and Codex adaptations remain applicable.
+
+**Scope:** This sets the approach going forward; it does not authorize deleting or weakening existing tests, implementing status functions, creating branches, or making commits. Existing tests and application files are unchanged. Only project instructions and the required evidence logs were updated. No additional pytest run was needed for this documentation-only change; entry 15 records the latest explicit full-suite check.
+
+## 17 — Complete the assignment and status branch workflow
+
+**Date:** 2026-11-08. **Prompt:** “let go for it and perform the branch workflow”
+
+**Authorization and scope:** After reviewing the current state and branch mismatch, the user authorized the required branch workflow and implementation. Fetched origin and confirmed main and origin/main had identical history at `f753d57`. Created `feature/assign-and-status`, carrying the existing status-test draft and documentation changes. Scope remains assignment, resolution, closure, and history. No additional tests, optional configuration, CLI, CSV importer, or batch escalator were added. The user's earlier preference to create, review, and merge the PR is retained.
+
+**Tests first:** Before writing any new feature code, `.venv/bin/python -B -m pytest -q --tb=line -rN -p no:cacheprovider` reported `46 failed, 69 passed in 0.20s`, exit 1. All new failures were missing status/history functions. Commit `1501cb4` contains only `tests/test_status.py` and precedes implementation commit `4f727b8`. The frozen SHA-256 hashes remain:
+
+- `tests/test_claims.py`: `6d586e3b868e292ec5e96d6fc73e20060e6085b71220a335ba9b07ebc74c79bb`.
+- `tests/test_status.py`: `38081ca91141ee46ac2c157bf2fd75234ca70bdfa474822f2ac87145deb895cf`.
+
+**Implementation decisions:** Added the complete allowed-transition map and the four documented public operations to `claims.py`. Assignment requires a nonblank agent; resolve and close preserve ownership. A private shared mutation helper validates the supplied actor/time, reads and checks the current claim within the existing savepoint, updates status/ownership, and appends exactly one complete history entry. It leaves existing outer transactions under caller control. History retrieval validates the claim exists and returns mappings in entry-ID order. Missing IDs and forbidden transitions raise useful `ValueError`s, and storage failures propagate. SQL values are bound parameters. The map includes escalation paths for the next branch, but this branch exposes no public escalation operation or clock-reading rule.
+
+**Observed checks:**
+
+- `.venv/bin/python -B -m pytest -q -p no:cacheprovider` → `115 passed in 0.19s`, exit 0.
+- `.venv/bin/python -B -m ruff check --no-cache .` → `All checks passed!`, exit 0.
+- `git diff --exit-code 1501cb4 -- tests` → no diff, exit 0. Both frozen test hashes match. `db.py` and Codex protections are unchanged.
+- Rollback sensitivity: copied only the relevant source and frozen status tests into a temporary directory, replaced the status helper's `atomic` context with `nullcontext`, and ran the existing forced-history-failure cases. All three failed on unchanged-claim assertions: `3 failed, 43 deselected in 0.07s`. Source/test hashes in the real repository remained unchanged, and the temporary copy was removed automatically. This confirms the tests detect partial assignment, resolution, and closure writes when transaction protection is removed.
+- Ran the actual trusted Stop hook with an initial-turn payload. It reported `115 passed in 0.24s`, returned stdout `{}` and exit 0, and requested no continuation. It passed normally without the repeated-failure guard.
+
+**Review outcome:** Self-reviewed the full implementation diff against the assignment and frozen contract. No test corrections or implementation changes were needed after the first green run. The previously excessive test matrix was preserved rather than removed without approval; no further cases were added. This is implementation self-review, not independent or learner PR approval.
+
+**Tracking and handoff:** ORB-60 is Done after its separate tests-first commit; ORB-61 and ORB-62 are Done after passing implementation checks. ORB-53 and ORB-63 remain In Progress for the PR workflow. The [branch comparison](https://github.com/AbdulMB-Online/Orbit-Air-Baggage-Desk/compare/main...feature/assign-and-status?expand=1) is the PR handoff. Required title: `feature/assign-and-status: add assignment, resolution, closure, and history`. Proposed description: “Add assignment for open/escalated claims, resolution for assigned/escalated claims, closure for resolved claims, and ordered audit history. Reject invalid changes without writes, preserve ownership and unrelated fields, and save each change with its history atomically. Verified: all 115 tests pass, Ruff passes, and all three rollback tests detect removal of transaction protection. Tests were committed before implementation and remain unchanged.” PR creation, learner review, and merge are pending; none are claimed as complete.
+
 ## Pending feature and review evidence
 
 | Required branch | Minimum tests | Prompt, implementation, correction, and review evidence |
 |---|---|---|
-| `feature/schema-and-filing` | 5 | Reviewed test-first commit `ef67f61`; all 69 cases and Ruff pass; user PR creation/review/merge pending |
-| `feature/assign-and-status` | 6 | Not yet recorded; implementation pending |
+| `feature/schema-and-filing` | 5 | PR #2 merged as `f753d57`; reviewed test-first commit `ef67f61` preserved; all 69 cases and Ruff pass |
+| `feature/assign-and-status` | 6 | Entry 17: tests-first commit `1501cb4`, implementation `4f727b8`; all 115 cases and Ruff pass, rollback sensitivity verified; PR review/merge pending |
 | `feature/deadlines-and-escalation` | 6 | Not yet recorded; implementation pending |
 | `feature/cli` | 3 | Not yet recorded; implementation pending |
 
