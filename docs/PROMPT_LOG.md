@@ -368,13 +368,92 @@ All checks passed!
 
 **Tracking and handoff:** ORB-60 is Done after its separate tests-first commit; ORB-61 and ORB-62 are Done after passing implementation checks. ORB-53 and ORB-63 remain In Progress for the PR workflow. The [branch comparison](https://github.com/AbdulMB-Online/Orbit-Air-Baggage-Desk/compare/main...feature/assign-and-status?expand=1) is the PR handoff. Required title: `feature/assign-and-status: add assignment, resolution, closure, and history`. Proposed description: “Add assignment for open/escalated claims, resolution for assigned/escalated claims, closure for resolved claims, and ordered audit history. Reject invalid changes without writes, preserve ownership and unrelated fields, and save each change with its history atomically. Verified: all 115 tests pass, Ruff passes, and all three rollback tests detect removal of transaction protection. Tests were committed before implementation and remain unchanged.” PR creation, learner review, and merge are pending; none are claimed as complete.
 
+## 18 — Verify the assignment and status merge
+
+**Date:** 2026-11-08. **Prompt:** “merged”
+
+**Observed outcome:** Fetched origin and verified [PR #3](https://github.com/AbdulMB-Online/Orbit-Air-Baggage-Desk/pull/3) merged as `be2e026`, with title `feature/assign-and-status: add assignment, resolution, closure, and history`. The merge retains feature tip `18f5304`, tests-first commit `1501cb4`, and implementation commit `4f727b8` in main's ancestry. Switched to the existing local main branch and fast-forwarded to origin/main.
+
+**Checks and tracking:** On merged main, `.venv/bin/python -B -m pytest -q -p no:cacheprovider` reported `115 passed in 0.21s`; `.venv/bin/python -B -m ruff check --no-cache .` reported `All checks passed!`, both exit 0. Both frozen test hashes match entry 17. Marked ORB-63 and ORB-53 Done and recorded the verified merge in Linear. The feature and all four children are complete. No detailed learner review findings were supplied, so none are claimed.
+
+**Scope:** Updated the existing evidence documents locally without making another commit or changing application code/tests. The next required branch is `feature/deadlines-and-escalation`, starting with at least six focused tests for its required rules. That feature has not been started.
+
+## 19 — Write six focused escalation tests
+
+**Date:** 2026-11-08. **Prompt:** “feature/deadlines-and-escalation, starting with six focused tests. Lets ensure we are diversifying our test coverage across the 6 tests”
+
+**Scope:** Read the assignment, reviewed plan, project instructions, ORB-54, and its four children ORB-64 through ORB-67. Created the requested `feature/deadlines-and-escalation` branch from merged main at `be2e026`, carrying the existing merge-note edits. Added only `tests/test_escalation.py` and the required evidence updates. No implementation, existing-test changes, configuration changes, or commits. ORB-54 and ORB-64 are In Progress; the tests-first child remains open until its tests are reviewed and committed.
+
+**Six distinct collected tests, without parametrization:**
+
+| Test | Required coverage |
+|---|---|
+| Strict deadline boundaries and UTC | One minute before, exactly at, and one minute after; equality is not overdue; aware/naive UTC policy |
+| Mixed eligibility and affected IDs | Overdue open/assigned escalate; escalated/resolved/closed and equal/future deadlines do not; IDs are exact and unique; ownership, unrelated fields, existing history, and persistence are preserved |
+| Complete system history | Both eligible source statuses produce exactly one old/new/system entry each, using the injected time normalized to UTC |
+| Empty batch | An empty database returns no IDs and changes neither table |
+| Repeat run | A later invocation returns no IDs and changes no claims or history already escalated by the first invocation |
+| Whole-batch rollback | A trigger aborts the second escalation history write, after an earlier history entry succeeded; all claim/history snapshots and independent-connection data remain unchanged |
+
+**API assumptions for review:** Proposed `claims.is_overdue(deadline: datetime, *, now: datetime) -> bool` and `claims.escalate_overdue(connection, *, now: datetime) -> list[int]`. Python signatures are project choices, not assignment-mandated names. Returned ID order is unspecified; tests compare sorted IDs to detect omissions, extras, and duplicates. Escalation supplies actor `system` internally; storage failures propagate. Batch-wide atomicity is specified by the reviewed project plan and Linear acceptance criteria; the lab itself explicitly requires each claim change and its history to be atomic.
+
+**Independence and review:** Fixtures use parameterized SQL and static legal histories, independently of filing, manual status operations, and escalation implementation. All connections close explicitly. Boundary assertions share one coherent predicate test instead of expanding the pytest case count. The trigger fails after either eligible claim's first escalation history, so rollback coverage does not depend on processing order. `RAISE(ABORT)` rejects that insertion without undoing previous statements; the implementation must roll back the batch. This catches implementations that commit one claim at a time. Self-reviewed the six-test requirement mapping; transaction-removal sensitivity remains a later implementation check, not an observation claimed during this tests-only phase.
+
+**Observed checks:**
+
+- Baseline: `.venv/bin/python -B -m pytest -q -p no:cacheprovider` → `115 passed in 0.20s`, exit 0.
+- Targeted red run: `.venv/bin/python -B -m pytest tests/test_escalation.py -q --tb=short -p no:cacheprovider` → `6 failed in 0.07s`, exit 1.
+- Full suite: `.venv/bin/python -B -m pytest -q --tb=short -p no:cacheprovider` → `6 failed, 115 passed in 0.26s`, exit 1. The six new failures are missing `is_overdue` or `escalate_overdue`; there are no collection/setup errors, skips, or xfails. Total collected cases: 121, exactly six more than the baseline.
+- `.venv/bin/python -B -m ruff check --no-cache .` → `All checks passed!`, exit 0.
+- Both existing test hashes remain identical to entry 17. Git reports no diff for application files, existing tests, instructions, the plan, or Codex protections.
+
+**Remaining:** Review the new tests and API assumptions, then preserve a tests-first commit before any later authorized implementation. This phase leaves the suite intentionally red and does not authorize implementation or a protection bypass.
+
+## 20 — Review and correct the six escalation tests
+
+**Date:** 2026-11-08. **Prompt summaries:** Perform a read-only review of the six tests for API/schema compatibility, transaction ownership, fixtures/assertions/trigger correctness, coverage, and expected pre-implementation failures. After the review concluded **MINOR CHANGES**, the user replied “lers continue”.
+
+**Read-only review outcome:** Found two issues: escalation did not exercise the existing caller-owned transaction contract, and the already-escalated fixture recorded escalation at 10:01 against a 13:59 deadline. Schema, connections, proposed API shapes, six-case coverage, and the rollback trigger otherwise matched the project requirements. An in-memory trigger probe confirmed that the second insertion fails in either processing order while the first remains pending until rollback. All 14 checked project files remained unchanged during that review; no log edits were made until the user continued.
+
+**Authorized corrections:** Applied only the two described changes to the uncommitted escalation test draft. Its API documentation now distinguishes standalone batch commits from joining an explicitly begun caller transaction. The existing complete-history test begins an outer transaction, retains every original history/UTC assertion, checks both claim changes and history within that transaction, verifies the transaction stays active and writes remain invisible to an independent connection, and confirms caller rollback restores both tables. The standalone persistence and forced whole-batch failure checks remain intact. The fixture now records escalation 30 seconds after its deadline, after assignment and before the injected current time. The suite still contains exactly six functions/cases with no parametrization; no assertions were removed or weakened.
+
+**Observed verification:**
+
+- `.venv/bin/python -B -m pytest tests/test_escalation.py --collect-only -q -p no:cacheprovider` → `6 tests collected in 0.01s`, exit 0.
+- `.venv/bin/python -B -m pytest -q --tb=short -p no:cacheprovider` → `6 failed, 115 passed in 0.27s`, exit 1. Every failure still identifies missing `is_overdue` or `escalate_overdue`; there are no collection/setup errors, skips, or xfails.
+- `.venv/bin/python -B -m ruff check --no-cache .` → `All checks passed!`, exit 0.
+- An in-memory fixture probe confirmed deadline `2026-11-02T13:59:00+00:00` < escalation `2026-11-02T13:59:30+00:00` ≤ injected now `2026-11-02T14:00:00+00:00`.
+- Both committed test hashes still match entry 17. Application files, other tests, instructions, plan, Codex protections, HEAD, and branch remain unchanged.
+
+**Scope and remaining work:** Only the escalation test draft and existing evidence logs changed. No feature code or commits were added. Public function signatures remain the documented project API choices from entry 19. The corrected caller-transaction assertions and actual transaction-removal sensitivity must be exercised once implementation is authorized; the current run is deliberately red. A separate tests-first commit must still precede implementation.
+
+## 21 — Implement the overdue and escalation APIs
+
+**Date:** 2026-11-08. **Prompt:** “dlets implement the escaltion API for these tests”
+
+**Scope and tests-first history:** Continued on the existing `feature/deadlines-and-escalation` branch. Before writing feature code, the full suite reported `6 failed, 115 passed in 0.25s`, exit 1, with failures only at the missing overdue/escalation APIs. Commit `0b2f0b2` contains only the six reviewed tests, including the previously authorized draft corrections, and precedes implementation commit `581e166`. The escalation test SHA-256 is `6932ed82318b6fa8b66104cdfd3154be896606bb28a5dc91968dbce15e2e7f1d`. The two earlier test hashes remain identical to entry 17. No tests changed and no cases were added during implementation.
+
+**Implementation decisions:** Added `is_overdue(deadline, *, now)` and `escalate_overdue(connection, *, now)` in `claims.py`. Both use the existing UTC policy and supplied time; neither reads a clock. The predicate uses strict `>`. Escalation selects only open/assigned candidates, parses their stored deadlines, and changes only overdue candidates. It reuses the existing status/history helper with actor `system`, preserving ownership and unrelated fields. One outer savepoint surrounds the entire batch; nested per-claim savepoints do not commit it. Standalone release commits the complete batch, while an existing caller transaction remains active and can roll back both tables. Returned IDs identify actual changes; repeated and empty runs return no IDs. Updated the reused helper's docstring to cover manual and automatic status changes; its logic is unchanged. No schema, CLI, CSV, configuration, or security-control changes were made.
+
+**Observed verification:**
+
+- `.venv/bin/python -B -m pytest -q -p no:cacheprovider` → `121 passed in 0.22s`, exit 0. This includes the caller transaction/observer/rollback assertions added during review.
+- `.venv/bin/python -B -m ruff check --no-cache .` → `All checks passed!`, exit 0.
+- `git diff --exit-code 0b2f0b2 -- tests` → no diff, exit 0. All three test hashes match their frozen versions.
+- Rollback sensitivity: copied source and the frozen escalation tests to a temporary directory, replaced only the outer `escalate_overdue` savepoint with `nullcontext`, and left the nested per-claim transactions intact. The prewritten second-history-failure test failed on claim/history snapshots: `1 failed, 5 deselected in 0.05s`. This proves per-claim protection alone allows a partial batch commit. The real repository's source and test hashes stayed unchanged, and the temporary copy was removed automatically.
+- Ran the actual trusted Stop hook with an initial-turn payload. It reported `121 passed in 0.22s`, returned stdout `{}` and exit 0, and requested no continuation. No protection was bypassed.
+
+**Review outcome:** Self-reviewed the full implementation diff for strict boundaries, eligibility on the public escalation path, UTC parsing, system history, ownership preservation, empty/repeated results, whole-batch rollback, caller ownership, and parameterized SQL. No implementation corrections or test edits were needed after the first green run. This is implementation self-review; learner PR review and the planned final CLI review are not claimed as complete.
+
+**Tracking and handoff:** ORB-64 is Done after the tests-first commit; ORB-65 and ORB-66 are Done after implementation checks. ORB-54 and ORB-67 remain In Progress for the dedicated PR workflow. The [branch comparison](https://github.com/AbdulMB-Online/Orbit-Air-Baggage-Desk/compare/main...feature/deadlines-and-escalation?expand=1) is the handoff. Required title: `feature/deadlines-and-escalation: escalate overdue claims atomically`. The user retains PR creation, review, and merge. The later CLI feature and actual `python main.py --now` demonstration remain pending.
+
 ## Pending feature and review evidence
 
 | Required branch | Minimum tests | Prompt, implementation, correction, and review evidence |
 |---|---|---|
 | `feature/schema-and-filing` | 5 | PR #2 merged as `f753d57`; reviewed test-first commit `ef67f61` preserved; all 69 cases and Ruff pass |
-| `feature/assign-and-status` | 6 | Entry 17: tests-first commit `1501cb4`, implementation `4f727b8`; all 115 cases and Ruff pass, rollback sensitivity verified; PR review/merge pending |
-| `feature/deadlines-and-escalation` | 6 | Not yet recorded; implementation pending |
+| `feature/assign-and-status` | 6 | PR #3 merged as `be2e026`; separate tests-first/implementation commits preserved; all 115 cases and Ruff pass on merged main; rollback sensitivity verified |
+| `feature/deadlines-and-escalation` | 6 | Entry 21: tests-first `0b2f0b2`, implementation `581e166`; exactly six new cases; all 121 cases and Ruff pass; batch rollback sensitivity verified; PR review/merge pending |
 | `feature/cli` | 3 | Not yet recorded; implementation pending |
 
 For each branch, record the actual failing-test observation before implementation, subsequent passing checks, approved test changes, and learner checks. Add real issue/PR links and review findings only when they exist. The planned final PR review has not happened yet.
