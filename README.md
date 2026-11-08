@@ -2,7 +2,7 @@
 
 ## Overview
 
-Orbit Air Baggage Desk manages baggage claims in SQLite. The Python API supports filing, deadlines, filtered listing, assignment, resolution, closure, and audit history. Automatic escalation, CSV import, and `main.py` belong to the remaining required branches.
+Orbit Air Baggage Desk manages baggage claims in SQLite. The Python API supports filing, deadlines, filtered listing, assignment, resolution, closure, audit history, and automatic overdue escalation. CSV import and `main.py` belong to the remaining CLI branch.
 
 ## Installation and Setup
 
@@ -48,7 +48,9 @@ In a new database the example prints `1 open 2026-11-02T18:00:00+00:00`. Filing 
 
 The status APIs are `assign_claim(connection, claim_id, *, agent, now, actor)`, `resolve_claim(connection, claim_id, *, now, actor)`, and `close_claim(connection, claim_id, *, now, actor)`. Assign open/escalated claims to a nonblank agent, resolve assigned/escalated claims, and close resolved claims. Closed claims are terminal. Resolution and closure preserve ownership and unrelated fields. `get_history(connection, claim_id)` returns complete history mappings in entry-ID order. Missing IDs and forbidden changes raise clear `ValueError`s without writes.
 
-Standalone filing and status operations commit the claim and its history together. To group operations into one batch, explicitly start an outer transaction before the first call:
+`is_overdue(deadline, *, now)` compares datetime inputs strictly after UTC normalization. `escalate_overdue(connection, *, now)` returns the IDs of overdue open/assigned claims changed to escalated. It preserves ownership and unrelated fields, records `system` history with the supplied UTC time, and leaves ineligible claims untouched. Repeating a run adds no duplicate history; exactly at the deadline is not overdue.
+
+Standalone filing and status operations commit the claim and its history together; escalation commits the entire batch atomically. To group operations into a caller-owned transaction, explicitly begin it before the first call:
 
 ```python
 with connection:
@@ -57,26 +59,31 @@ with connection:
     # An exception escaping this block rolls back the entire batch.
 ```
 
-Connection contexts manage transactions; `closing(...)` closes the database connection. Filing and status operations use savepoints and never commit an existing caller transaction. This supports the later all-or-nothing CSV importer without weakening individual claim/history atomicity. Every rule receives time and actor from its caller; only the future CLI will read the clock and choose the manual actor.
+Connection contexts manage transactions; `closing(...)` closes the database connection. Filing, status operations, and escalation use savepoints and never commit an existing caller transaction. This supports the later all-or-nothing CSV importer without weakening atomicity. Every rule receives time from its caller. Manual operations also receive an actor; automatic escalation uses `system`. Only the future CLI will read the clock and choose the manual actor.
 
 ## Testing
 
-The reviewed filing/schema suite is in [tests/test_claims.py](tests/test_claims.py). Assignment/status/history tests are in [tests/test_status.py](tests/test_status.py). With the project virtual environment active:
+The reviewed suites are in [tests/test_claims.py](tests/test_claims.py), [tests/test_status.py](tests/test_status.py), and [tests/test_escalation.py](tests/test_escalation.py). With the project virtual environment active:
 
 ```text
 python -m pytest
 python -m pytest tests/test_claims.py
 python -m pytest tests/test_status.py
+python -m pytest tests/test_escalation.py
 python -m ruff check .
 ```
 
-Current branch result: **115 cases pass; Ruff passes**. The status tests cover allowed paths, forbidden changes, validation, complete ordered history, UTC times, and transaction rollback/commit. Commit `1501cb4` preserves the 46 failing status cases before implementation commit `4f727b8`; neither test file changed during implementation, and no additional cases were added. Run the documented commands from the repository root. See [the implementation log](docs/PROMPT_LOG.md#17--complete-the-assignment-and-status-branch-workflow) for actual checks and review evidence.
+Current branch result: **121 cases pass; Ruff passes**. The escalation branch adds exactly six focused cases covering boundaries/UTC, eligibility/IDs, history within a caller-owned transaction, empty batches, repeat execution, and whole-batch rollback. Tests-first commit `0b2f0b2` precedes implementation `581e166`; all test files remain unchanged after their tests-first commits. The two draft corrections were made before committing the escalation tests; see [the review log](docs/PROMPT_LOG.md#20--review-and-correct-the-six-escalation-tests) and [implementation evidence](docs/PROMPT_LOG.md#21--implement-the-overdue-and-escalation-apis).
+
+The completed status tests cover allowed paths, forbidden changes, validation, complete ordered history, UTC times, and transaction rollback/commit. Commit `1501cb4` preserves their failing cases before implementation commit `4f727b8`; both existing test files remain unchanged. See [the implementation log](docs/PROMPT_LOG.md#17--complete-the-assignment-and-status-branch-workflow) for those checks.
 
 The test-first history is preserved: [initial 31-case red run](docs/ORB-56-pytest-red.txt), [reviewed 69-case red run](docs/ORB-56-pytest-red-69.txt), then tests-only commit `ef67f61` before any application implementation. See the [test review and implementation log](docs/PROMPT_LOG.md#13--complete-orb-52-against-the-reviewed-tests).
 
 The [rollback mutation check](docs/ORB-52-rollback-mutation.txt) removed filing's transaction context in a temporary copy. The unchanged rollback test failed against that deliberate defect; the normal implementation passes it. Temporary copies do not alter or weaken the committed tests.
 
 For status operations, removing only their transaction context in a temporary copy caused all three forced-history-failure cases to fail. The real implementation passes these unchanged tests. The actual Stop hook ran the completed branch's 115 cases successfully and returned `{}` with exit 0.
+
+For escalation, removing only the outer batch savepoint in a temporary copy left per-claim protection intact but caused the unchanged batch rollback test to fail on partial claim/history writes. The real implementation passes it and the caller-owned transaction checks. The actual Stop hook passed all 121 cases and returned `{}` with exit 0.
 
 A fresh local checkout of implementation commit `ef80b49`, with a newly created virtual environment and dependencies installed from `requirements-dev.txt`, passed all 69 cases and Ruff without optional pytest configuration. The actual Stop hook also returned successful JSON `{}` with all 69 cases passing, so it required no continuation.
 
@@ -91,7 +98,7 @@ Project: [Orbit Air Baggage Desk](https://linear.app/orbit-air-baggage-desk/proj
 | [ORB-54 — Escalate overdue claims atomically](https://linear.app/orbit-air-baggage-desk/issue/ORB-54/featuredeadlines-and-escalation-escalate-overdue-claims-atomically) | `feature/deadlines-and-escalation` | 6 | ORB-53 |
 | [ORB-55 — Expose claim commands and CSV seeding](https://linear.app/orbit-air-baggage-desk/issue/ORB-55/featurecli-expose-claim-commands-and-csv-seeding) | `feature/cli` | 3 | ORB-54 |
 
-All four issues were created in Backlog and include Problem, Actual behavior, Expected behavior, Done when, and Constraint sections. Follow the exact branch names above rather than Linear's generated suggestions. ORB-52 is Done after [PR #2](https://github.com/AbdulMB-Online/Orbit-Air-Baggage-Desk/pull/2) merged. ORB-53 is implemented and verified on `feature/assign-and-status`; its parent remains open for PR review and merge.
+All four issues were created in Backlog and include Problem, Actual behavior, Expected behavior, Done when, and Constraint sections. Follow the exact branch names above rather than Linear's generated suggestions. ORB-52 and ORB-53 are Done after [PR #2](https://github.com/AbdulMB-Online/Orbit-Air-Baggage-Desk/pull/2) and [PR #3](https://github.com/AbdulMB-Online/Orbit-Air-Baggage-Desk/pull/3) merged. ORB-54 is implemented and verified on its feature branch, awaiting the dedicated PR review and merge.
 
 ### Scoped sub-issues
 
@@ -104,7 +111,7 @@ Each parent has four linked sub-issues. Open the parent in Linear to view its ch
 | ORB-54 | [ORB-64 — Overdue/escalation tests](https://linear.app/orbit-air-baggage-desk/issue/ORB-64) | [ORB-65 — Overdue eligibility](https://linear.app/orbit-air-baggage-desk/issue/ORB-65) | [ORB-66 — Batch escalation](https://linear.app/orbit-air-baggage-desk/issue/ORB-66) | [ORB-67 — Rollback and review](https://linear.app/orbit-air-baggage-desk/issue/ORB-67) |
 | ORB-55 | [ORB-68 — CLI/seed tests](https://linear.app/orbit-air-baggage-desk/issue/ORB-68) | [ORB-69 — Commands/clock](https://linear.app/orbit-air-baggage-desk/issue/ORB-69) | [ORB-70 — Atomic CSV seeding](https://linear.app/orbit-air-baggage-desk/issue/ORB-70) | [ORB-71 — Walkthrough/final review](https://linear.app/orbit-air-baggage-desk/issue/ORB-71) |
 
-All sub-issues were created in Backlog. Each step depends on the preceding sibling; the first child of ORB-53, ORB-54, and ORB-55 also waits for its parent's prerequisite issue. Keep each parent open until its children, acceptance checks, and required PR merge are complete. ORB-56 through ORB-62 are Done; ORB-63 is In Progress for the PR handoff, review, and merge workflow.
+All sub-issues were created in Backlog. Each step depends on the preceding sibling; the first child of ORB-53, ORB-54, and ORB-55 also waits for its parent's prerequisite issue. Keep each parent open until its children, acceptance checks, and required PR merge are complete. ORB-56 through ORB-66 are Done; ORB-67 is In Progress for the PR handoff, review, and merge workflow.
 
 ## Setup Check
 
@@ -116,7 +123,7 @@ During the intentionally red tests-only phase, the original hook repeatedly rest
 
 ## Agent Log
 
-Codex assists with development. The [detailed prompt log](docs/PROMPT_LOG.md) records substantive prompts, decisions, corrections, and observed review outcomes. The user merged the first feature in PR #2; the second feature is implemented and verified, awaiting its dedicated PR review and merge.
+Codex assists with development. The [detailed prompt log](docs/PROMPT_LOG.md) records substantive prompts, decisions, corrections, and observed review outcomes. The first two features are merged; escalation is implemented and verified with exactly six new cases, awaiting its PR review and merge.
 
 | Entry | Prompt summary | Work and review outcome |
 |---|---|---|
@@ -137,6 +144,10 @@ Codex assists with development. The [detailed prompt log](docs/PROMPT_LOG.md) re
 | [15 — Assignment/status tests first](docs/PROMPT_LOG.md#15--write-assignment-status-and-history-tests-first) | Write at least six tests for assignment, resolution, closure, allowed changes, and history. | Added 13 functions covering 46 cases, including rejection without writes and forced history failure. Full pytest: 69 existing pass, 46 expected failures at missing APIs. Ruff passes. Existing tests and application code unchanged; API choices documented for review; no branches or commits. |
 | [16 — Assignment scope](docs/PROMPT_LOG.md#16--limit-future-work-to-assignment-requirements) | Explain the 100+ cases and limit future work to assignment requirements. | Acknowledged excessive coverage and updated project instructions to use focused tests for required rules and branch minimums. Existing tests remain unchanged; no implementation or commits. |
 | [17 — `feature/assign-and-status`](docs/PROMPT_LOG.md#17--complete-the-assignment-and-status-branch-workflow) | Proceed with the required branch workflow. | Created the exact branch from current main; committed failing tests first (`1501cb4`), then implemented atomic assignment, resolution, closure, and ordered history (`4f727b8`). All 115 cases and Ruff pass; all three rollback cases detect removal of transaction protection in a temporary copy. No tests or unrelated features were added during implementation. PR creation/review/merge remains with the user. |
+| [18 — Second feature merged](docs/PROMPT_LOG.md#18--verify-the-assignment-and-status-merge) | User reported the PR merged. | Verified PR #3 merge `be2e026` and its preserved tests-first history, synchronized local main, and passed all 115 cases and Ruff. Marked ORB-53/ORB-63 Done. The next feature remains unstarted. |
+| [19 — Six focused escalation tests](docs/PROMPT_LOG.md#19--write-six-focused-escalation-tests) | Start `feature/deadlines-and-escalation` with six tests covering different requirements. | Created the exact branch and added six cases for boundaries/UTC, eligibility/IDs, system history, empty batches, repeat runs, and batch rollback. Full pytest: 115 pass, six expected failures at missing APIs; Ruff passes. Existing tests unchanged; no implementation or commits. |
+| [20 — Escalation test review/corrections](docs/PROMPT_LOG.md#20--review-and-correct-the-six-escalation-tests) | Review read-only, then continue after two minor findings. | Corrected an escalation fixture timestamp and strengthened the existing history test with caller transaction, observer visibility, and rollback checks. All original assertions retained; exactly six cases collect. Full pytest: 115 pass, six expected failures; Ruff passes. No implementation or commits. |
+| [21 — `feature/deadlines-and-escalation`](docs/PROMPT_LOG.md#21--implement-the-overdue-and-escalation-apis) | Implement the escalation APIs against the reviewed tests. | Committed the six failing tests first (`0b2f0b2`), then implemented strict UTC overdue comparison and atomic escalation (`581e166`). All 121 cases and Ruff pass; removing only the outer batch savepoint causes the unchanged rollback test to fail. No test changes or additional cases during implementation. |
 
 ORB-56 created the ignored project virtual environment with pytest and Ruff. Both feature suites have separate tests-first commits and are green. Their frozen file hashes are recorded in the prompt log. Temporary hook and mutation fixtures do not count toward application tests.
 
@@ -145,8 +156,8 @@ ORB-56 created the ignored project virtual environment with pytest and Ruff. Bot
 | Required branch | Minimum tests | Status |
 |---|---|---|
 | `feature/schema-and-filing` | 5 | PR #2 merged as `f753d57`; 69 passing cases; separate test-first history preserved |
-| `feature/assign-and-status` | 6 | Separate tests-first and implementation commits; all 115 cases and Ruff pass; dedicated PR review/merge pending |
-| `feature/deadlines-and-escalation` | 6 | Implementation, test-first results, and PR review pending |
+| `feature/assign-and-status` | 6 | PR #3 merged as `be2e026`; separate tests-first history preserved; all 115 cases and Ruff pass on merged main |
+| `feature/deadlines-and-escalation` | 6 | Separate tests-first and implementation commits; exactly six new cases; all 121 cases and Ruff pass; batch rollback sensitivity verified; PR review/merge pending |
 | `feature/cli` | 3 | Implementation, test-first results, and PR review pending |
 
 Add actual branch prompts, Codex changes, learner checks/corrections, and review outcomes as work happens. Acceptance of the user-requested Codex tooling substitutions by the original assignment grader is unverified.
@@ -157,12 +168,16 @@ The required seed-file summary exercise is pending `feature/cli`; it has not bee
 
 ## Overdue Demonstration
 
-Pending `feature/deadlines-and-escalation` and `feature/cli`. This first feature calculates deadlines but does not yet provide the escalation command or a `--now` CLI demonstration.
+The overdue and escalation Python APIs are implemented. The required command demonstration with `python main.py --now ...` and real CLI output remains pending `feature/cli`.
 
 ## Code Review
 
 At the user's request, Codex audited the first test draft and corrected six findings. The user approved the strengthened result with “looks good” before implementation. Codex self-reviewed the implementation against those frozen tests and checked rollback sensitivity. Ruff flagged two Python argument-type guards; these were corrected to use `TypeError` for invalid `now`/`note` argument types while preserving `ValueError` for invalid claim values.
 
-For `feature/assign-and-status`, Codex self-reviewed the diff against the transition map, atomic-history rule, field preservation, and injected time/actor policy. All frozen tests and Ruff passed without test changes; the rollback sensitivity check caught removal of transaction protection. Learner review of this implementation is pending.
+For `feature/assign-and-status`, Codex self-reviewed the diff against the transition map, atomic-history rule, field preservation, and injected time/actor policy. All frozen tests and Ruff passed without test changes; the rollback sensitivity check caught removal of transaction protection.
 
-The user reported PR #2 merged, and the merge was verified in Git. No detailed review findings were supplied, and an independent PR review has not been claimed. The final `codex review --base main` evidence belongs to the later CLI PR, as planned.
+The six escalation tests received a read-only review that found missing caller-transaction coverage and an escalation fixture timestamp before its deadline. After the user instructed Codex to continue, both findings were corrected within the same six tests without weakening assertions. Actual checks and remaining implementation validation are recorded in [entry 20](docs/PROMPT_LOG.md#20--review-and-correct-the-six-escalation-tests).
+
+The escalation implementation was self-reviewed against those corrected, frozen tests. All 121 cases and Ruff pass. Removing the outer batch savepoint in a temporary copy proved the rollback test catches partial batch commits, while the real implementation preserves caller transaction ownership. Learner PR review remains pending; see [entry 21](docs/PROMPT_LOG.md#21--implement-the-overdue-and-escalation-apis).
+
+The user reported PRs #2 and #3 merged, and both merges were verified in Git. No detailed review findings were supplied, and an independent PR review has not been claimed. The final `codex review --base main` evidence belongs to the later CLI PR, as planned.
