@@ -1,5 +1,6 @@
 """Claim rules and history; every time value comes from the caller."""
 
+import csv
 import sqlite3
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
@@ -14,6 +15,7 @@ ALLOWED_TRANSITIONS = {
     "resolved": ("closed",),
     "closed": (),
 }
+SEED_COLUMNS = ["passenger", "flight", "type", "tier", "note"]
 
 
 def _required_text(value: str, field: str) -> str:
@@ -41,6 +43,18 @@ def is_overdue(deadline: datetime, *, now: datetime) -> bool:
     return _utc(now) > _utc(deadline)
 
 
+def _validate_filing_fields(
+    passenger: str, flight: str, claim_type: str, tier: str, *, actor: str, note: str,
+) -> None:
+    _required_text(passenger, "passenger")
+    _required_text(flight, "flight")
+    _required_text(actor, "actor")
+    _enum_value(claim_type, CLAIM_TYPES, "type")
+    _enum_value(tier, TIERS, "tier")
+    if not isinstance(note, str):
+        raise TypeError("note must be text")
+
+
 def file_claim(
     connection: sqlite3.Connection,
     *,
@@ -53,13 +67,9 @@ def file_claim(
     note: str = "",
 ) -> int:
     """File a claim and its initial history as one composable atomic operation."""
-    passenger = _required_text(passenger, "passenger")
-    flight = _required_text(flight, "flight")
-    actor = _required_text(actor, "actor")
-    claim_type = _enum_value(claim_type, CLAIM_TYPES, "type")
-    tier = _enum_value(tier, TIERS, "tier")
-    if not isinstance(note, str):
-        raise TypeError("note must be text")
+    _validate_filing_fields(
+        passenger, flight, claim_type, tier, actor=actor, note=note,
+    )
     filed_at = _utc(now)
     deadline = filed_at + timedelta(hours=DEADLINE_HOURS[tier])
 
@@ -212,3 +222,42 @@ def escalate_overdue(connection: sqlite3.Connection, *, now: datetime) -> list[i
                 )
                 escalated_ids.append(claim["id"])
     return escalated_ids
+
+
+def seed_claims(
+    connection: sqlite3.Connection,
+    reader: csv.DictReader,
+    *,
+    now: datetime,
+    actor: str,
+) -> list[int]:
+    """Validate every CSV row before importing claims/history as one atomic batch."""
+    actor = _required_text(actor, "actor")
+    filed_at = _utc(now)
+    if reader.fieldnames != SEED_COLUMNS:
+        raise ValueError(f"CSV columns must be exactly: {','.join(SEED_COLUMNS)}")
+    validated_rows = []
+    try:
+        for row in reader:
+            try:
+                if None in row or any(value is None for value in row.values()):
+                    raise ValueError("expected exactly five columns")
+                _validate_filing_fields(
+                    row["passenger"], row["flight"], row["type"], row["tier"],
+                    actor=actor, note=row["note"],
+                )
+            except (ValueError, TypeError) as error:
+                raise ValueError(f"CSV row {reader.line_num}: {error}") from error
+            validated_rows.append(row)
+    except csv.Error as error:
+        raise ValueError(f"CSV row {reader.line_num}: {error}") from error
+
+    claim_ids = []
+    with atomic(connection):
+        for row in validated_rows:
+            claim_ids.append(file_claim(
+                connection, passenger=row["passenger"], flight=row["flight"],
+                claim_type=row["type"], tier=row["tier"], note=row["note"],
+                now=filed_at, actor=actor,
+            ))
+    return claim_ids

@@ -19,8 +19,9 @@ __pycache__/
 *.sqlite3
 *.sqlite3-*
 
-# Local Codex instructions
+# Local Codex instructions and prompt history
 AGENTS.override.md
+/docs/PROMPT_LOG.md
 
 # Local Claude instructions
 CLAUDE.local.md

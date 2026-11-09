@@ -19,7 +19,7 @@
 - Write new tests before feature code, observe and record their failures, then implement. When commits are authorized, commit tests before implementation on each required branch.
 - Never modify, delete, rename, skip, or weaken existing tests without the user's explicit approval. Explain the proposed correction first; document approved changes in the PR. Do not bypass tests through fixtures or configuration.
 - Use focused tests for distinct required rules, meeting branch minimums of 5, 6, 6, and 3 in `PLAN.md` order and at least 20 passing tests overall. Cover deadline boundaries and forced history-write rollback; add cases only when needed for required coverage.
-- Review every diff and run applicable checks; record substantive Codex prompts, decisions, corrections, and review outcomes in `docs/PROMPT_LOG.md`, with relevant summaries in README's `Agent Log`. Report actual results and remaining failures; never invent evidence.
+- Review every diff and run applicable checks; keep substantive prompts, decisions, corrections, and review outcomes in the local, Git-ignored `docs/PROMPT_LOG.md`; never stage or commit it. Keep required summaries in README's `Agent Log`. Report actual results and remaining failures; never invent evidence.
 
 ## Security restrictions
 
