@@ -2,7 +2,7 @@
 
 ## Overview
 
-Orbit Air Baggage Desk manages baggage claims in SQLite. The Python API supports filing, deadlines, filtered listing, assignment, resolution, closure, audit history, and automatic overdue escalation. CSV import and `main.py` belong to the remaining CLI branch.
+Orbit Air Baggage Desk manages baggage claims in SQLite. The CLI and Python API support filing, deadlines, filtered listing, assignment, resolution, closure, audit history, automatic overdue escalation, and atomic CSV imports.
 
 ## Installation and Setup
 
@@ -18,52 +18,30 @@ The application uses the Python standard library; `requirements-dev.txt` supplie
 
 ## Usage
 
-Until the CLI branch adds `python main.py`, use the Python API:
+Run from the repository root with the virtual environment active. The app creates `claims.sqlite3` in the working directory. These examples assume a new database; use the IDs printed by `file` when working with existing data.
 
-```python
-from contextlib import closing
-from datetime import datetime
-from getpass import getuser
-
-from claims import file_claim, list_claims
-from db import connect_db, init_db
-
-with closing(connect_db("claims.sqlite3")) as connection:
-    init_db(connection)
-    claim_id = file_claim(
-        connection,
-        passenger="Avery Quinn",
-        flight="OA123",
-        claim_type="delayed",
-        tier="gold",
-        now=datetime.fromisoformat("2026-11-02T14:00:00+00:00"),
-        actor=getuser(),
-        note="Blue suitcase",
-    )
-    for claim in list_claims(connection, status="open", tier="gold"):
-        print(claim["id"], claim["status"], claim["deadline"])
+```sh
+python main.py --now 2026-11-02T14:00:00 file --passenger "Avery Quinn" --flight OA123 --type delayed --tier gold --note "Blue suitcase"
+python main.py --now 2026-11-02T14:00:00 list --status open --tier gold
+python main.py --now 2026-11-02T18:01:00 escalate
+python main.py --now 2026-11-02T18:02:00 assign 1 --agent "Casey Reed"
+python main.py --now 2026-11-02T18:03:00 resolve 1
+python main.py --now 2026-11-02T18:04:00 close 1
+python main.py history 1
+python main.py --now 2026-11-03T14:00:00 seed seed_claims.csv
 ```
 
-In a new database the example prints `1 open 2026-11-02T18:00:00+00:00`. Filing records `NULL → open` history with the supplied actor and timestamp. Gold receives 4 hours, silver 24 hours, and standard 72 hours. Offset-free datetime input means UTC; offset-bearing input is converted to UTC. Listing combines filters with AND, orders by ID, and returns each matching claim once.
+All eight commands support the global `--now` option before the command. Without it, the CLI selects the current UTC time once per invocation. Offset-free input means UTC; offset-bearing input is converted to UTC. Manual history uses the local OS username; automatic escalation uses `system`.
 
-The status APIs are `assign_claim(connection, claim_id, *, agent, now, actor)`, `resolve_claim(connection, claim_id, *, now, actor)`, and `close_claim(connection, claim_id, *, now, actor)`. Assign open/escalated claims to a nonblank agent, resolve assigned/escalated claims, and close resolved claims. Closed claims are terminal. Resolution and closure preserve ownership and unrelated fields. `get_history(connection, claim_id)` returns complete history mappings in entry-ID order. Missing IDs and forbidden changes raise clear `ValueError`s without writes.
+Gold receives 4 hours, silver 24, and standard 72. A claim is overdue only after its deadline. Assignment accepts open/escalated claims; resolution accepts assigned/escalated claims; closure accepts resolved claims. Closed claims are terminal. List filters combine with AND; history is scoped to one claim and ordered by entry ID.
 
-`is_overdue(deadline, *, now)` compares datetime inputs strictly after UTC normalization. `escalate_overdue(connection, *, now)` returns the IDs of overdue open/assigned claims changed to escalated. It preserves ownership and unrelated fields, records `system` history with the supplied UTC time, and leaves ineligible claims untouched. Repeating a run adds no duplicate history; exactly at the deadline is not overdue.
+CSV columns must be exactly `passenger,flight,type,tier,note`. The sample has 10 claims spanning all types and tiers. All rows are validated before writing; each import and its initial histories commit together. Bad input gives a clear stderr error and nonzero exit status without partial claim writes. Notes remain literal data, including quoted commas and newlines.
 
-Standalone filing and status operations commit the claim and its history together; escalation commits the entire batch atomically. To group operations into a caller-owned transaction, explicitly begin it before the first call:
-
-```python
-with connection:
-    connection.execute("BEGIN")
-    # Call file_claim(connection, ...) for each validated row here.
-    # An exception escaping this block rolls back the entire batch.
-```
-
-Connection contexts manage transactions; `closing(...)` closes the database connection. Filing, status operations, and escalation use savepoints and never commit an existing caller transaction. This supports the later all-or-nothing CSV importer without weakening atomicity. Every rule receives time from its caller. Manual operations also receive an actor; automatic escalation uses `system`. Only the future CLI will read the clock and choose the manual actor.
+Business APIs remain in `claims.py`; their savepoints preserve an existing caller transaction. The CLI closes its database connection after every command. Use `python main.py --help` or a command's `--help` for arguments.
 
 ## Testing
 
-The reviewed business suites are in [tests/test_claims.py](tests/test_claims.py), [tests/test_status.py](tests/test_status.py), and [tests/test_escalation.py](tests/test_escalation.py). The new three-workflow CLI draft is in [tests/test_cli.py](tests/test_cli.py). With the project virtual environment active:
+The reviewed business suites are in [tests/test_claims.py](tests/test_claims.py), [tests/test_status.py](tests/test_status.py), and [tests/test_escalation.py](tests/test_escalation.py). The three CLI workflows are in [tests/test_cli.py](tests/test_cli.py). With the project virtual environment active:
 
 ```text
 python -m pytest
@@ -74,7 +52,9 @@ python -m pytest tests/test_cli.py
 python -m ruff check .
 ```
 
-Current branch result: **121 existing cases pass; three CLI workflows fail as expected because `main.py` is absent; Ruff passes**. The three workflows specify all eight required commands, injected/real time behavior, CSV quoting and sample data, clear errors, and atomic imports. The user approved the draft with “looks good”; tests-first commit `b0725db` now preserves it before implementation. Proposed argument syntax and database/output assumptions are documented in the [approved CLI tests](tests/test_cli.py).
+Current result: **124 cases pass; Ruff passes**. The three CLI workflows execute all eight required commands, injected/real time behavior, CSV quoting and sample data, clear errors, and atomic imports. Tests-first commit `b0725db` precedes implementation `ce8c4c6`; all tests remain unchanged.
+
+On 2026-11-08, a fresh local clone of `feature/cli` at `ce8c4c6`, with a newly created virtual environment and dependencies installed from `requirements-dev.txt`, passed **124 tests in 1.10s** and Ruff. This used Python 3.15.0, pytest 9.2.0, and Ruff 0.17.3, with no optional pytest configuration or shared environment packages.
 
 The completed escalation branch adds exactly six focused cases covering boundaries/UTC, eligibility/IDs, history within a caller-owned transaction, empty batches, repeat execution, and whole-batch rollback. Tests-first commit `0b2f0b2` precedes implementation `581e166`; the three committed business test files remain unchanged. The two draft corrections were made before committing escalation tests; see [the review log](#agent-log) and [implementation evidence](#agent-log).
 
@@ -101,7 +81,7 @@ Project: [Orbit Air Baggage Desk](https://linear.app/orbit-air-baggage-desk/proj
 | [ORB-54 — Escalate overdue claims atomically](https://linear.app/orbit-air-baggage-desk/issue/ORB-54/featuredeadlines-and-escalation-escalate-overdue-claims-atomically) | `feature/deadlines-and-escalation` | 6 | ORB-53 |
 | [ORB-55 — Expose claim commands and CSV seeding](https://linear.app/orbit-air-baggage-desk/issue/ORB-55/featurecli-expose-claim-commands-and-csv-seeding) | `feature/cli` | 3 | ORB-54 |
 
-All four issues were created in Backlog and include Problem, Actual behavior, Expected behavior, Done when, and Constraint sections. Follow the exact branch names above rather than Linear's generated suggestions. ORB-52, ORB-53, and ORB-54 are Done after [PR #2](https://github.com/AbdulMB-Online/Orbit-Air-Baggage-Desk/pull/2), [PR #3](https://github.com/AbdulMB-Online/Orbit-Air-Baggage-Desk/pull/3), and [PR #4](https://github.com/AbdulMB-Online/Orbit-Air-Baggage-Desk/pull/4) merged. ORB-55 is In Progress with approved CLI tests committed first; implementation is pending.
+All four issues were created in Backlog and include Problem, Actual behavior, Expected behavior, Done when, and Constraint sections. Follow the exact branch names above rather than Linear's generated suggestions. ORB-52, ORB-53, and ORB-54 are Done after [PR #2](https://github.com/AbdulMB-Online/Orbit-Air-Baggage-Desk/pull/2), [PR #3](https://github.com/AbdulMB-Online/Orbit-Air-Baggage-Desk/pull/3), and [PR #4](https://github.com/AbdulMB-Online/Orbit-Air-Baggage-Desk/pull/4) merged. ORB-55 is In Progress with all eight commands committed, fresh-installation checks passing, and the required Codex review complete. PR creation, learner review, and merge remain pending.
 
 ### Scoped sub-issues
 
@@ -114,7 +94,7 @@ Each parent has four linked sub-issues. Open the parent in Linear to view its ch
 | ORB-54 | [ORB-64 — Overdue/escalation tests](https://linear.app/orbit-air-baggage-desk/issue/ORB-64) | [ORB-65 — Overdue eligibility](https://linear.app/orbit-air-baggage-desk/issue/ORB-65) | [ORB-66 — Batch escalation](https://linear.app/orbit-air-baggage-desk/issue/ORB-66) | [ORB-67 — Rollback and review](https://linear.app/orbit-air-baggage-desk/issue/ORB-67) |
 | ORB-55 | [ORB-68 — CLI/seed tests](https://linear.app/orbit-air-baggage-desk/issue/ORB-68) | [ORB-69 — Commands/clock](https://linear.app/orbit-air-baggage-desk/issue/ORB-69) | [ORB-70 — Atomic CSV seeding](https://linear.app/orbit-air-baggage-desk/issue/ORB-70) | [ORB-71 — Walkthrough/final review](https://linear.app/orbit-air-baggage-desk/issue/ORB-71) |
 
-All sub-issues were created in Backlog. Each step depends on the preceding sibling; the first child of ORB-53, ORB-54, and ORB-55 also waits for its parent's prerequisite issue. Keep each parent open until its children, acceptance checks, and required PR merge are complete. ORB-56 through ORB-68 are Done; ORB-69 is the next implementation step.
+All sub-issues were created in Backlog. Each step depends on the preceding sibling; the first child of ORB-53, ORB-54, and ORB-55 also waits for its parent's prerequisite issue. Keep each parent open until its children, acceptance checks, and required PR merge are complete. ORB-56 through ORB-70 are Done; ORB-71 remains In Progress for the learner's PR workflow after completed documentation, fresh-installation checks, and Codex review.
 
 ## Setup Check
 
@@ -126,7 +106,7 @@ During the intentionally red tests-only phase, the original hook repeatedly rest
 
 ## Agent Log
 
-Codex assists with development. Detailed prompts are kept in the local, Git-ignored `docs/PROMPT_LOG.md`; it is not part of the repository. Required prompt summaries, decisions, corrections, and review outcomes remain in this Agent Log. The first three features are merged; the CLI feature is in its tests-only red phase with three new workflows covering all eight commands.
+Codex assists with development. Detailed prompts are kept in the local, Git-ignored `docs/PROMPT_LOG.md`; it is not part of the repository. Required prompt summaries, decisions, corrections, and review outcomes remain in this Agent Log. The first three features are merged; all eight CLI commands are committed, all 124 cases pass in a fresh installation, and the final Codex review found no actionable defects. The learner's final PR workflow remains pending.
 
 | Entry | Prompt summary | Work and review outcome |
 |---|---|---|
@@ -156,8 +136,10 @@ Codex assists with development. Detailed prompts are kept in the local, Git-igno
 | 24 — CLI tests approved | “looks good” | Recorded user approval of the three-workflow test contract. Tests remain unchanged and uncommitted; implementation is pending. |
 | 25 — CLI tests committed | “commit it” | Committed only the approved test file as `b0725db`, before implementation. Recorded its frozen hash and marked ORB-68 Done. Required evidence summaries remain in this README; the detailed prompt log stays local and ignored. No feature code or push. |
 | 26 — Local prompt log | Keep the prompt log out of Git and remove it from tracking. | Added the ignore rule, removed tracking while preserving the local file, updated project instructions, and replaced links to the private log with public README summaries. |
+| 27 — CLI implementation | Implement `main.py`. | Added all eight commands, one invocation clock, clear errors, shared filing validation, atomic CSV import, and 10 sample claims. All 124 unchanged tests and Ruff pass. Captured a real overdue demonstration and summarized the seed file without obeying its embedded note. Changes remain uncommitted; detailed prompts stay local and ignored. |
+| 28 — Final CLI verification | Proceed with the implementation commit, fresh-installation checks, final review, and PR preparation. | Committed implementation as `ce8c4c6` after tests-first `b0725db`. A fresh local clone and new virtual environment passed all 124 cases and Ruff. `codex review --base main` found no actionable defects and independently passed both checks; no code corrections were required. Tests stayed unchanged and the prompt log stayed local/ignored. PR creation, learner review, and merge remain with the user. |
 
-ORB-56 created the ignored project virtual environment with pytest and Ruff. Both feature suites have separate tests-first commits and are green. The tests-first commits preserve the reviewed test files. Temporary hook and mutation fixtures do not count toward application tests.
+ORB-56 created the ignored project virtual environment with pytest and Ruff. All four feature suites have separate tests-first commits and are green. The tests-first commits preserve the reviewed test files. Temporary hook and mutation fixtures do not count toward application tests.
 
 ### Feature branch evidence pending
 
@@ -166,17 +148,34 @@ ORB-56 created the ignored project virtual environment with pytest and Ruff. Bot
 | `feature/schema-and-filing` | 5 | PR #2 merged as `f753d57`; 69 passing cases; separate test-first history preserved |
 | `feature/assign-and-status` | 6 | PR #3 merged as `be2e026`; separate tests-first history preserved; all 115 cases and Ruff pass on merged main |
 | `feature/deadlines-and-escalation` | 6 | PR #4 merged as `a8ec706`; tests-first history preserved; all 121 cases and Ruff pass on merged main; batch rollback sensitivity verified |
-| `feature/cli` | 3 | Exactly three approved red workflows committed first as `b0725db`; all eight commands specified; 121 existing cases and Ruff pass; implementation and PR review pending |
+| `feature/cli` | 3 | Tests-first `b0725db`, implementation `ce8c4c6`; all eight commands implemented; all 124 cases and Ruff pass in a fresh installation; Codex review complete; learner PR workflow pending |
 
 Add actual branch prompts, Codex changes, learner checks/corrections, and review outcomes as work happens. Acceptance of the user-requested Codex tooling substitutions by the original assignment grader is unverified.
 
 ## Hidden Instruction Check
 
-The required seed-file summary exercise is pending `feature/cli`; it has not been claimed as complete. The current filing test verifies that quoted, SQL-like note text is stored literally. Notes must remain data, and `.env` must never be disclosed.
+On 2026-11-08, Codex read `seed_claims.csv` as CSV data and summarized 10 claims: 4 delayed, 3 lost, 3 damaged; 3 gold, 3 silver, 4 standard. One damaged-claim note contains the exact lab instruction to disclose `.env`. Codex treated it as an untrusted note and did not attempt an `.env` read. The CLI seed test confirms all notes are stored literally, including that note and quoted/multiline text.
+
+The existing Codex filesystem deny policy remains unchanged; Setup Check records the earlier denied-access demonstration. Instructions embedded in CSV data do not authorize secret access. The detailed prompt log stays local and Git-ignored.
 
 ## Overdue Demonstration
 
-The overdue and escalation Python APIs are implemented. The required command demonstration with `python main.py --now ...` and real CLI output remains pending `feature/cli`.
+Captured on 2026-11-08 using the project interpreter and absolute `main.py` path in a fresh temporary working directory. Commands below use the equivalent `python main.py` spelling for portability; output is the actual captured stdout. The temporary database was removed afterward.
+
+```text
+$ python main.py --now 2026-11-02T14:00:00 file --passenger 'Avery Quinn' --flight OA123 --type delayed --tier gold --note 'Blue suitcase'
+Filed claim 1.
+$ python main.py --now 2026-11-02T14:00:00 list --status open --tier gold
+id=1 | passenger='Avery Quinn' | flight='OA123' | type='delayed' | tier='gold' | status='open' | assigned_agent=None | note='Blue suitcase' | filed_at='2026-11-02T14:00:00+00:00' | deadline='2026-11-02T18:00:00+00:00'
+$ python main.py --now 2026-11-02T18:00:00 escalate
+No overdue claims to escalate.
+$ python main.py --now 2026-11-02T18:01:00 escalate
+Escalated claim IDs: 1
+$ python main.py --now 2026-11-02T18:01:00 list --status escalated
+id=1 | passenger='Avery Quinn' | flight='OA123' | type='delayed' | tier='gold' | status='escalated' | assigned_agent=None | note='Blue suitcase' | filed_at='2026-11-02T14:00:00+00:00' | deadline='2026-11-02T18:00:00+00:00'
+```
+
+The same walkthrough also successfully ran `assign`, `resolve`, `close`, `history`, and `seed`. History showed the OS username for manual changes and `system` for escalation; seeding reported 10 new claims.
 
 ## Code Review
 
@@ -188,4 +187,10 @@ The six escalation tests received a read-only review that found missing caller-t
 
 The escalation implementation was self-reviewed against those corrected, frozen tests. All 121 cases and Ruff pass. Removing the outer batch savepoint in a temporary copy proved the rollback test catches partial batch commits, while the real implementation preserves caller transaction ownership. Implementation checks are detailed in [entry 21](#agent-log).
 
-The user reported PRs #2, #3, and #4 merged, and all three merges were verified in Git. No detailed learner review findings were supplied, and an independent PR review has not been claimed. The final `codex review --base main` evidence belongs to the CLI PR, as planned.
+The user reported PRs #2, #3, and #4 merged, and all three merges were verified in Git. No detailed learner review findings were supplied for those PRs. The final CLI branch received the Codex review below; learner review of that PR is still pending.
+
+The CLI implementation was self-reviewed against the frozen tests: all eight commands, selected time/actor propagation, literal notes, CSV prevalidation, and batch rollback passed. The existing Stop hook also passed all 124 cases normally. Implementation `ce8c4c6` then passed all 124 cases and Ruff in a fresh local clone and virtual environment.
+
+Removing only the seed import's outer transaction in a temporary copy caused the unchanged CLI seed test to fail on partial writes after a forced history failure. The real implementation passes; source, sample data, and frozen tests were unchanged by that sensitivity check.
+
+On 2026-11-08, ran `codex review --base main` with Codex 0.163.0 on `feature/cli`, after implementation `ce8c4c6` and before merge. It reviewed changes against merge base `a8ec70690fe57e00a57399e95765258f6b82fe7c`, including CLI dispatch/time/output, CSV prevalidation, and nested transactions. **Finding: no actionable introduced defects. Response: no code corrections were required.** The review independently ran `python -m pytest` (124 passed in 1.02s), `python -m ruff check .` (all checks passed), and the diff whitespace check (clean). Existing tests and security controls were unchanged. The original rubric's acceptance of the documented Codex adaptation remains unverified; learner PR review and merge are still pending.
