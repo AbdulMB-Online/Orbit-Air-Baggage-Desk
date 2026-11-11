@@ -4,11 +4,6 @@
 - Use Python 3.12+, SQLite, and a project virtual environment; preserve the assignment's exact application, command, branch, issue, and PR names.
 - Stay within the user's current scope and the assignment's required behavior and evidence. Avoid optional additions and redundant test combinations. Do not create application code, branches, or commits unless explicitly authorized for that task.
 
-## Architecture boundaries
-
-- `db.py` owns connections and schema creation; enable foreign keys and enforce allowed types, tiers, and statuses with SQLite CHECK constraints.
-- `claims.py` owns validation, deadlines, permitted transitions, escalation, and history; persist every claim change and its history atomically.
-- `main.py` stays thin: parse arguments, select the clock once, call business functions, and print results/errors. Pass time into rules; never read the clock inside them.
 - SLA: gold 4 hours, silver 24 hours, standard 72 hours. Overdue means strictly `now > deadline`; escalate only overdue open/assigned claims. Apply the UTC policy in `PLAN.md`.
 
 ## Tests and review
