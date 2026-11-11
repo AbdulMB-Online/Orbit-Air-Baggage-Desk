@@ -24,3 +24,13 @@ statusMessage = "Running the project pytest suite"
 # Review/trust this hook through /hooks; do not bypass hook trust.
 # Permission documentation: https://learn.chatgpt.com/docs/permissions
 # Hook documentation: https://learn.chatgpt.com/docs/hooks
+
+# STRETCH GOAL 1: guard Codex patch edits before they run.
+[[hooks.PreToolUse]]
+matcher = "^apply_patch$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'python3 "$(git rev-parse --show-toplevel)/.codex/hooks/protect_tests.py"'
+timeout = 10
+statusMessage = "Protecting test files"

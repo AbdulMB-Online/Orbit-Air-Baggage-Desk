@@ -1,0 +1,25 @@
+# STRETCH GOAL 3
+name: Tests and lint
+
+on: pull_request
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install -r requirements-dev.txt
+      - name: Test
+        run: .venv/bin/python -m pytest
+      - name: Lint
+        if: always()
+        run: .venv/bin/python -m ruff check .

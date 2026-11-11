@@ -1,0 +1,12 @@
+**
+!Dockerfile
+!requirements-dev.txt
+!main.py
+!claims.py
+!db.py
+!seed_claims.csv
+!tests/
+!tests/*.py
+!.codex/
+!.codex/hooks/
+!.codex/hooks/protect_tests.py

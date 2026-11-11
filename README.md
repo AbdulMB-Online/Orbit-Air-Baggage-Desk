@@ -65,7 +65,7 @@ Codex 0.163.0 showed the Stop hook as Trusted. The hook runs project pytest: an 
 
 ## Agent Log
 
-Each branch's tests were observed failing and committed before its implementation. The learner later supplied manual CLI results confirming deadlines, status/history behavior, escalation boundaries, invalid-input errors, and CSV rejection without partial imports.
+The four required branches' tests were observed failing and committed before their implementation. The learner later supplied manual CLI results confirming deadlines, status/history behavior, escalation boundaries, invalid-input errors, and CSV rejection without partial imports.
 
 | Branch | Prompt summary | Codex work and checks/corrections |
 |---|---|---|
@@ -73,6 +73,7 @@ Each branch's tests were observed failing and committed before its implementatio
 | `feature/assign-and-status` | Write tests for assignment, resolution, closure, allowed changes, and history; perform the branch workflow. | Implemented atomic transitions and ordered history. Tests `1501cb4` preceded implementation `4f727b8`; 46 new cases initially failed at missing APIs, then all 115 cases and Ruff passed. The learner checked assignment, closure, forbidden transitions, filtering, and history actors/timestamps. |
 | `feature/deadlines-and-escalation` | Start with six focused tests, review them, then implement escalation. | Added strict overdue comparison and atomic batch escalation. After review and user authorization, corrected a fixture whose escalation preceded its deadline and added caller-transaction rollback checks before committing tests. Tests `0b2f0b2` preceded implementation `581e166`; six expected failures became 121 passing cases with clean Ruff. The learner checked deadline equality, later escalation, and repeat runs. |
 | `feature/cli` | Write three workflows covering all eight commands, then implement `main.py`. | Added command parsing, one selected clock, clear errors, atomic CSV imports, and 10 sample claims. Tests `b0725db` preceded implementation `ce8c4c6`; three expected missing-entrypoint failures became 124 passing cases with clean Ruff. The learner ran all eight commands, rejected an invalid CSV without partial imports, and checked real-clock filing. |
+| `feature/bonus` | Implement all four stretch goals; count overdue open, assigned, and escalated claims. | Observed six expected failures, then committed three report tests and three hook tests as `61bef29` before implementation. Implemented reporting, the Codex edit guard, PR checks, and Docker support. All 130 tests and Ruff pass locally and in Python 3.12 Docker. Existing test files are unchanged. |
 
 No tests were changed during feature implementation. The approved test-draft corrections above occurred before their tests-first commits.
 
@@ -102,3 +103,30 @@ On 2026-11-08, ran `codex review --base main` with Codex 0.163.0 on `feature/cli
 **Finding:** No actionable introduced defects.
 
 **Response:** Retained the implementation after the review's independent checks passed: pytest (124 passed), Ruff (all checks passed), and the diff whitespace check (clean). After merge, the learner manually exercised all eight commands and checked the 4/24/72-hour deadlines, no escalation at deadline equality, escalation one minute later, history actors/timestamps, and invalid CSV rejection without partial imports. The supplied results matched the expected behavior, so no code or test changes were needed in response to the review. The merged tree matches the reviewed feature HEAD `8005b08`.
+
+## Stretch Goals
+
+- **STRETCH GOAL 1:** `.codex/config.toml` connects the `apply_patch` PreToolUse hook to `.codex/hooks/protect_tests.py`. It rejects additions, updates, deletions, and moves targeting `tests/`, including traversal and symlink paths. Codex 0.163.0 showed it as Trusted and active through `/hooks`. Restart an existing session after installing the configuration. This guard covers Codex patch edits; it does not restrict shell commands or manual editor changes.
+
+  A PreToolUse event replay targeting `tests/test_claims.py` returned the following; no patch was applied and test hashes were unchanged:
+
+  ```text
+  Blocked edit to tests/: test files are protected.
+  Exit status: 2
+  ```
+
+  The already-running session did not reload the new hook; live interception in that session still requires a restart.
+
+- **STRETCH GOAL 2:** `python main.py --now 2026-11-02T18:01:00 report` prints open and overdue counts for all three tiers. Open means status `open`; overdue includes `open`, `assigned`, and `escalated` strictly past their deadline, excluding resolved and closed claims. The report does not change records.
+- **STRETCH GOAL 3:** `.github/workflows/checks.yml` installs the pinned dependencies in a Python 3.12 virtual environment and runs pytest and Ruff on every pull request. The first hosted run is pending a PR containing the workflow.
+- **STRETCH GOAL 4:** The Docker image runs the app and tests. Its build context excludes `.env`, Git history, host virtual environments, databases, and local logs. Build and run it with:
+
+  ```sh
+  docker build -t orbit-air-baggage-desk .
+  docker run --rm orbit-air-baggage-desk
+  docker run --rm orbit-air-baggage-desk main.py report
+  docker run --rm orbit-air-baggage-desk -m pytest
+  docker run --rm orbit-air-baggage-desk -m ruff check .
+  ```
+
+  Verified the default CLI help, seed/report/escalation calls in one container, **130 passing tests**, and clean Ruff. Separate containers start with a fresh database.

@@ -140,4 +140,10 @@ For later implementation:
 - Blank agent names are rejected.
 - Optional stretch goals are deferred until required functionality and evidence are complete. If added later, use the assignment's exact markers: `STRETCH GOAL 1`, `STRETCH GOAL 2`, `STRETCH GOAL 3`, and `STRETCH GOAL 4`.
 
-Current work remains limited to `PLAN.md`; application code, tests, branches, and commits are outside this planning task.
+## 7. Authorized bonus work
+
+The required four branches are merged. The user authorized all four stretch goals on `feature/bonus`: a Codex test-edit hook, a tier report, pull-request pytest/Ruff checks, and a Docker image for the app and tests. Keep each required `STRETCH GOAL` marker at its specified location.
+
+The report's open count includes only status `open`. The user selected overdue unresolved claims as `open`, `assigned`, or `escalated` with strictly `now > deadline`; exclude `resolved` and `closed`. Reuse the existing UTC policy and injected clock. Reporting is read-only and includes zero counts for every tier.
+
+Write three focused report tests and three hook tests before implementation, preserving the existing tests. Configure the new `PreToolUse` hook for Codex's `apply_patch` tool, review/trust it through `/hooks`, and restart existing sessions before relying on it. Preserve the secret-deny profile and pytest Stop hook. Record actual hook evidence and validation results in README; distinguish an event replay from a live tool interception.

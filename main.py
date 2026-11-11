@@ -50,6 +50,7 @@ def _parser() -> argparse.ArgumentParser:
     commands.add_parser("escalate", help="escalate all overdue open or assigned claims")
     seed = commands.add_parser("seed", help="import claims from a CSV file atomically")
     seed.add_argument("csv_path", type=Path)
+    commands.add_parser("report", help="show open and overdue unresolved counts by tier")
     return parser
 
 
@@ -72,6 +73,8 @@ def _dispatch(args: argparse.Namespace, connection: sqlite3.Connection,
         print(f"Filed claim {claim_id}.")
     elif args.command == "list":
         _print_rows(claims.list_claims(connection, status=args.status, tier=args.tier))
+    elif args.command == "report":
+        _print_rows(claims.claim_report(connection, now=now))
     elif args.command == "assign":
         claims.assign_claim(connection, args.claim_id, agent=args.agent, now=now, actor=actor)
         print(f"Assigned claim {args.claim_id} to {args.agent!r}.")
