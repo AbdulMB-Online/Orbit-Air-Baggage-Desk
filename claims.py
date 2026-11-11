@@ -117,6 +117,24 @@ def list_claims(
         return [dict(row) for row in cursor.fetchall()]
 
 
+# STRETCH GOAL 2
+def claim_report(connection: sqlite3.Connection, *, now: datetime) -> list[dict]:
+    """Count open claims and overdue unresolved claims by tier without writes."""
+    current_time = _utc(now)
+    totals = {tier: {"tier": tier, "open": 0, "overdue": 0} for tier in TIERS}
+    with closing(connection.execute(
+        "SELECT tier, status, deadline FROM claims WHERE status IN (?, ?, ?)",
+        ("open", "assigned", "escalated"),
+    )) as cursor:
+        for claim in cursor:
+            counts = totals[claim["tier"]]
+            if claim["status"] == "open":
+                counts["open"] += 1
+            if is_overdue(datetime.fromisoformat(claim["deadline"]), now=current_time):
+                counts["overdue"] += 1
+    return list(totals.values())
+
+
 def _get_claim(connection: sqlite3.Connection, claim_id: int) -> sqlite3.Row:
     with closing(connection.execute(
         "SELECT * FROM claims WHERE id = ?", (claim_id,),

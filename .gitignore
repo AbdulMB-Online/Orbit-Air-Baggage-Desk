@@ -22,6 +22,7 @@ __pycache__/
 # Local Codex instructions and prompt history
 AGENTS.override.md
 /docs/PROMPT_LOG.md
+/Validation.md
 
 # Local Claude instructions
 CLAUDE.local.md

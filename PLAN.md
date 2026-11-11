@@ -2,7 +2,7 @@
 
 This plan precedes application implementation. Creating this document does not create application code, tests, branches, or commits.
 
-**Codex adaptation:** use Codex for agent-assisted development. Keep the assignment's application filenames, branch names, commands, Linear project name, and README headings unchanged. Replace its agent-specific tooling with Codex project instructions, configuration, permissions, hooks, and review commands as described below. The original lab specification remains unchanged; acceptance of these tooling substitutions by its grader is an unresolved assumption.
+**Codex adaptation:** use Codex for agent-assisted development. Keep the assignment's application filenames, branch names, commands, Linear project name, and README headings unchanged. Replace its agent-specific tooling with Codex project instructions, configuration, permissions, hooks, and review commands as described below. The original lab specification remains unchanged. On 2026-11-08, the user confirmed that Codex is accepted; the tooling-acceptance assumption is resolved.
 
 ## 1. Customer problem and proposed solution
 
@@ -10,9 +10,9 @@ Orbit Air tracks baggage claims in spreadsheets and email, making ownership, res
 
 Build a Python 3.12+ command line application backed by SQLite:
 
-- `db.py`: connections, schema creation, and database constraints.
-- `claims.py`: validation, deadlines, transitions, escalation, and history.
-- `main.py`: command parsing, clock selection, and output.
+- `db.py` owns connections and schema creation; enable foreign keys and enforce allowed types, tiers, and statuses with SQLite CHECK constraints.
+- `claims.py` owns validation, deadlines, permitted transitions, escalation, and history; persist every claim change and its history atomically.
+- `main.py` stays thin: parse arguments, select the clock once, call business functions, and print results/errors. Pass time into rules; never read the clock inside them.
 - `tests/test_claims.py`: business-rule tests; additional test files may cover the CLI.
 
 Support the exact commands `file`, `list`, `assign`, `resolve`, `close`, `escalate`, `history`, and `seed`, invoked through `python main.py`.
@@ -103,7 +103,7 @@ Include the assignment's exact hidden-instruction note as inert data:
 | Secrets leak or claim notes influence the agent | Ignore `.env`, configure a Codex filesystem permission profile denying access to `.env`, inspect staged changes, and treat imported notes as data. Git ignore rules and agent instructions alone do not block reads. |
 | Invalid CSV creates partial results | Validate all rows before writing and import within one transaction. Report row-specific errors. |
 | README contains unsupported evidence | Capture actual test results, Codex observations, demonstration output, and review findings. |
-| Tooling substitutions fail literal grading checks | Document the Codex substitutions explicitly in the README and flag that the original rubric names different agent-specific artifacts. Do not assume equivalent functionality guarantees grading acceptance. |
+| Tooling substitutions fail literal grading checks | Resolved by the user's confirmation that Codex is accepted. Keep the approved substitutions documented explicitly in the README. |
 
 ## 6. Test-first development, PR strategy, and assumptions
 
@@ -131,7 +131,7 @@ For later implementation:
 - Timezone handling is unspecified: use UTC, interpreting offset-free timestamps as UTC.
 - Actor identification is unspecified: use the local OS username for manual operations and `system` for escalation.
 - Partial CSV failure behavior is unspecified: reject the entire import.
-- Agent tooling: use Codex-native files and workflows at the user's request; grader acceptance of this departure from agent-specific rubric checks is unverified.
+- Agent tooling: use Codex-native files and workflows at the user's request; the user confirmed on 2026-11-08 that Codex is accepted.
 
 **Additional proposed assumptions:**
 
@@ -140,4 +140,10 @@ For later implementation:
 - Blank agent names are rejected.
 - Optional stretch goals are deferred until required functionality and evidence are complete. If added later, use the assignment's exact markers: `STRETCH GOAL 1`, `STRETCH GOAL 2`, `STRETCH GOAL 3`, and `STRETCH GOAL 4`.
 
-Current work remains limited to `PLAN.md`; application code, tests, branches, and commits are outside this planning task.
+## 7. Authorized bonus work
+
+The required four branches are merged. The user authorized all four stretch goals on `feature/bonus`: a Codex test-edit hook, a tier report, pull-request pytest/Ruff checks, and a Docker image for the app and tests. Keep each required `STRETCH GOAL` marker at its specified location.
+
+The report's open count includes only status `open`. The user selected overdue unresolved claims as `open`, `assigned`, or `escalated` with strictly `now > deadline`; exclude `resolved` and `closed`. Reuse the existing UTC policy and injected clock. Reporting is read-only and includes zero counts for every tier.
+
+Write three focused report tests and three hook tests before implementation, preserving the existing tests. Configure the new `PreToolUse` hook for Codex's `apply_patch` tool, review/trust it through `/hooks`, and restart existing sessions before relying on it. Preserve the secret-deny profile and pytest Stop hook. Record actual hook evidence and validation results in README; distinguish an event replay from a live tool interception.
