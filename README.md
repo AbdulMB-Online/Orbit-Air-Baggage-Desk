@@ -119,7 +119,7 @@ On 2026-11-08, ran `codex review --base main` with Codex 0.163.0 on `feature/cli
 
 - **STRETCH GOAL 2:** `python main.py --now 2026-11-02T18:01:00 report` prints open and overdue counts for all three tiers. Open means status `open`; overdue includes `open`, `assigned`, and `escalated` strictly past their deadline, excluding resolved and closed claims. The report does not change records.
 - **STRETCH GOAL 3:** `.github/workflows/checks.yml` installs the pinned dependencies in a Python 3.12 virtual environment and runs pytest and Ruff on every pull request. The first hosted run is pending a PR containing the workflow.
-- **STRETCH GOAL 4:** The Docker image runs the app and tests. Its build context excludes `.env`, Git history, host virtual environments, databases, and local logs. Build and run it with:
+- **STRETCH GOAL 4:** The Docker image runs the app and tests. Its build context excludes `.env`, Git history, host virtual environments, and databases. Build and run it with:
 
   ```sh
   docker build -t orbit-air-baggage-desk .
